@@ -76,7 +76,7 @@ public class FritzBoxAccesser
         
     }
 
-    public async Task<FritzBoxResponse> GetAllDevciesInNetworkAsync() => JsonConvert.DeserializeObject<FritzBoxResponse>(await GetOverViewPageJsonAsync())!;
+    public async Task<List<Device>> GetAllDevciesInNetworkAsync() => JsonConvert.DeserializeObject<FritzBoxResponse>(await GetOverViewPageJsonAsync())!.Data.Net.Devices!;
     private string CalculateMD5(string input)
     {
         using (MD5 md5 = MD5.Create())
@@ -92,7 +92,6 @@ public class FritzBoxAccesser
             return sb.ToString();
         }
     }
-
 }
 
 
