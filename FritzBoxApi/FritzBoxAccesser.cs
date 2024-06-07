@@ -13,7 +13,7 @@ public class FritzBoxAccesser
     private readonly string path = "/net/home_auto_hkr_edit.lua";
     private static readonly HttpClient _HttpClient = new HttpClient();
 
-    public static void SetAttributes(string fritzBoxPassword, string fritzBoxUrl = "https://fritz.box") => (FritzBoxUrl, Password) = (fritzBoxUrl, fritzBoxPassword);
+    public static void SetAttributes(string fritzBoxPassword, string fritzBoxUrl = "https://fritz.box",string userName = "") => (FritzBoxUrl, Password, fritzUserName) = (fritzBoxUrl, fritzBoxPassword, userName);
     public FritzBoxAccesser()
     {
         if (Password is "" || FritzBoxUrl is "")
@@ -34,12 +34,11 @@ public class FritzBoxAccesser
                 var xml = XDocument.Parse(response);
                 var sid = xml.Root.Element("SID").Value;
                 if (sid != "0000000000000000")
-                {
                     return sid;
-                }
 
                 var challenge = xml.Root.Element("Challenge").Value;
-                fritzUserName = xml.Root.Element("Users")?.Element("User").Value;
+                fritzUserName = fritzUserName is "" ? xml.Root.Element("Users")?.Element("User").Value! : fritzUserName;
+
                 var responseHash = CalculateMD5(challenge + "-" + Password);
                 var content = new StringContent($"response={challenge}-{responseHash}&username={fritzUserName}&lp=overview&loginView=simple", Encoding.UTF8, "application/x-www-form-urlencoded");
 
@@ -51,9 +50,8 @@ public class FritzBoxAccesser
 
 
                 if (loginSid == "0000000000000000")
-                {
-                    throw new Exception();
-                }
+                    throw new Exception("Login failed. Ensure (if set) username and password is correct!");
+                
 
                 return loginSid;
             }
@@ -61,28 +59,11 @@ public class FritzBoxAccesser
     }
     public async Task<string> GetOverViewPageJsonAsync()
     {
-        try
-        {
             var sid = await GetSessionId();
             using (var handler = new HttpClientHandler())
             {
                 handler.ServerCertificateCustomValidationCallback = (request, cert, chain, errors) => true;
                 HttpClient client = new HttpClient(handler) { BaseAddress = new Uri(FritzBoxUrl) };
-
-                client.DefaultRequestHeaders.Clear();
-                client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.6422.112 Safari/537.36");
-                client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("*/*"));
-                client.DefaultRequestHeaders.Add("Origin", FritzBoxUrl);
-                client.DefaultRequestHeaders.Referrer = new Uri(FritzBoxUrl);
-                client.DefaultRequestHeaders.AcceptEncoding.Add(new StringWithQualityHeaderValue("gzip"));
-                client.DefaultRequestHeaders.AcceptEncoding.Add(new StringWithQualityHeaderValue("deflate"));
-                client.DefaultRequestHeaders.AcceptEncoding.Add(new StringWithQualityHeaderValue("br"));
-                client.DefaultRequestHeaders.AcceptLanguage.Add(new StringWithQualityHeaderValue("de-DE"));
-                client.DefaultRequestHeaders.AcceptLanguage.Add(new StringWithQualityHeaderValue("de", 0.9));
-                client.DefaultRequestHeaders.AcceptLanguage.Add(new StringWithQualityHeaderValue("en-US", 0.8));
-                client.DefaultRequestHeaders.AcceptLanguage.Add(new StringWithQualityHeaderValue("en", 0.7));
-                client.DefaultRequestHeaders.Connection.Add("keep-alive");
-
                 var content = new StringContent($"xhr=1&sid={sid}&lang=de&page=overview&xhrId=all&useajax=1&no_sidrenew=", Encoding.UTF8, "application/x-www-form-urlencoded");
                 var response = client.PostAsync("/data.lua", content)
                     .GetAwaiter()
@@ -92,12 +73,7 @@ public class FritzBoxAccesser
 
                 throw new Exception("Failed to fetch fritzbox overview page json");
             }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine(ex.Message);
-            return string.Empty;
-        }
+        
     }
 
     public async Task<FritzBoxResponse> GetAllDevciesInNetworkAsync() => JsonConvert.DeserializeObject<FritzBoxResponse>(await GetOverViewPageJsonAsync())!;
