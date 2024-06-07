@@ -13,7 +13,7 @@ public class Program
     {
         FritzBoxAccesser.SetAttributes("password");
         FritzBoxAccesser access = new FritzBoxAccesser();
-        var devices = await access.GetAllDevciesInNetwork();
+        var devices = await access.GetAllDevciesInNetworkAsync();
     }
 }
 ```
