@@ -13,11 +13,19 @@ public class Program
     {
         FritzBoxAccesser.SetAttributes("password");
         FritzBoxAccesser access = new FritzBoxAccesser();
-        var devices = await access.GetAllDevciesInNetworkAsync();
+        var fritzBoxResponse = await fritzBoxAccesser.GetAllDevciesInNetworkAsync();
+
+        foreach(Device device in fritzBoxResponse.Data.Net.Devices)
+            Console.WriteLine($"Device: {device.Name}, is active: {device.StateInfo.Active}");
     }
 }
 ```
 
+<span>Specify more details for the accessor:</span>
+```csharp
+FritzBoxAccesser.SetAttributes(fritzBoxPassword:"password", fritzBoxUrl: "https://192.168.178.1", userName: "fritz1234");
+FritzBoxAccesser fritzBoxAccesser = new FritzBoxAccesser();
+```
 <h1>Info</h1>
 <span>
   If you want to set a custom FritzBox URL, make sure to use <code>https://</code>. For example, <code>https://192.168.178.1</code>.
