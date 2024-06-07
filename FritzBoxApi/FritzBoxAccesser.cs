@@ -92,40 +92,7 @@ public class FritzBoxAccesser
             return sb.ToString();
         }
     }
-    public async Task<string> GetDeviceInfoAsync(string sessionId, string options) => await ExecuteCommand(sessionId, "getdevicelistinfos", null, options);
-    private async Task<string> ExecuteCommand(string sid, string command, string ain, string path)
-    {
-        path += "/webservices/homeautoswitch.lua?0=0";
-        if (!string.IsNullOrEmpty(sid))
-            path += "&sid=" + sid;
-        if (!string.IsNullOrEmpty(command))
-            path += "&switchcmd=" + command;
-        if (!string.IsNullOrEmpty(ain))
-            path += "&ain" + ain;
-        return await HttpRequest(path, new HttpRequestMessage(), "");
-    }
-    private async Task<string> HttpRequest(string path, HttpRequestMessage req, string options)
-    {
-        req.RequestUri = new Uri(FritzBoxUrl + path);
-        var client = new HttpClient();
 
-        HttpResponseMessage response = await client.SendAsync(req);
-        string body = await response.Content.ReadAsStringAsync();
-
-        if (!response.IsSuccessStatusCode || response.StatusCode == System.Net.HttpStatusCode.Redirect || body.Contains("action=.?login.lua"))
-        {
-            throw new HttpRequestException($"HTTP request failed: {response.StatusCode}");
-        }
-
-        return body.Trim();
-    }
-    public async Task<List<string>> GetSwitchListAsync(string sid, string options)
-    {
-        string res = await ExecuteCommand(sid, "getswitchlist", null, "");
-
-        // Erzwinge leeres Array bei leerem Ergebnis
-        return string.IsNullOrEmpty(res) ? new List<string>() : new List<string>(res.Split(','));
-    }
 }
 
 
