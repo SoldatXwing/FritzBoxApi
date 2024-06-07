@@ -59,7 +59,7 @@ public class FritzBoxAccesser
             }
         }
     }
-    public async Task<string> GetOverViewPageJson()
+    public async Task<string> GetOverViewPageJsonAsync()
     {
         try
         {
@@ -100,7 +100,7 @@ public class FritzBoxAccesser
         }
     }
 
-    public async Task<FritzBoxResponse> GetAllDevciesInNetwork() => JsonConvert.DeserializeObject<FritzBoxResponse>(await GetOverViewPageJson())!;
+    public async Task<FritzBoxResponse> GetAllDevciesInNetworkAsync() => JsonConvert.DeserializeObject<FritzBoxResponse>(await GetOverViewPageJson())!;
     private string CalculateMD5(string input)
     {
         using (MD5 md5 = MD5.Create())
@@ -116,7 +116,7 @@ public class FritzBoxAccesser
             return sb.ToString();
         }
     }
-    public async Task<string> GetDeviceInfo(string sessionId, string options) => await ExecuteCommand(sessionId, "getdevicelistinfos", null, options);
+    public async Task<string> GetDeviceInfoAsync(string sessionId, string options) => await ExecuteCommand(sessionId, "getdevicelistinfos", null, options);
     private async Task<string> ExecuteCommand(string sid, string command, string ain, string path)
     {
         path += "/webservices/homeautoswitch.lua?0=0";
@@ -143,7 +143,7 @@ public class FritzBoxAccesser
 
         return body.Trim();
     }
-    public async Task<List<string>> GetSwitchList(string sid, string options)
+    public async Task<List<string>> GetSwitchListAsync(string sid, string options)
     {
         string res = await ExecuteCommand(sid, "getswitchlist", null, "");
 
