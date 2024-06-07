@@ -13,9 +13,9 @@ public class Program
     {
         FritzBoxAccesser.SetAttributes("password");
         FritzBoxAccesser access = new FritzBoxAccesser();
-        var fritzBoxResponse = await fritzBoxAccesser.GetAllDevciesInNetworkAsync();
+        var devices = await fritzBoxAccesser.GetAllDevciesInNetworkAsync();
 
-        foreach(Device device in fritzBoxResponse.Data.Net.Devices)
+        foreach(Device device in devices)
             Console.WriteLine($"Device: {device.Name}, is active: {device.StateInfo.Active}");
     }
 }
