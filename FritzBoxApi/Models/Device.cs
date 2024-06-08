@@ -19,4 +19,5 @@ public class Device
 
     [JsonProperty("desc")]
     public string Description { get; set; }
+    public string Ip {  get; set; }
 }
