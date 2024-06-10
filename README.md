@@ -13,7 +13,7 @@ public class Program
     {
         FritzBoxAccesser.SetAttributes("password");
         FritzBoxAccesser access = new FritzBoxAccesser();
-        var devices = await fritzBoxAccesser.GetAllDevciesInNetworkAsync();
+        var devices = await access.GetAllDevciesInNetworkAsync();
 
         foreach(Device device in devices)
             Console.WriteLine($"Device: {device.Name}, is active: {device.StateInfo.Active}");
