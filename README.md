@@ -39,8 +39,8 @@ public class Program
     {
         FritzBoxAccesser.SetAttributes("password");
         FritzBoxAccesser access = new FritzBoxAccesser();
-        var device = await r.GetSingleDeviceJTokenAsync(deviceName: "DESKTOP123");
-        await acess.ChangeInternetAccessStateForDevice(
+        var device = await access.GetSingleDeviceJTokenAsync(deviceName: "DESKTOP123");
+        await access.ChangeInternetAccessStateForDevice(
                 device["name"]?.ToString()!,
                 InternetDetail.Unlimited,
                 IPAddress.Parse(device["ip"]?.ToString()!),
