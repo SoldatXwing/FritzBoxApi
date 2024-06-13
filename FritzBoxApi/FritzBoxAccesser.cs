@@ -11,21 +11,9 @@ public class FritzBoxAccesser
     private static string FritzBoxUrl = string.Empty;
     private static string Password = string.Empty;
     private static string fritzUserName;
-    private static readonly HttpClient _HttpClient = new HttpClient();
-
-    public static void SetAttributes(string fritzBoxPassword, string fritzBoxUrl = "https://fritz.box", string userName = "") => (FritzBoxUrl, Password, fritzUserName) = (fritzBoxUrl, fritzBoxPassword, userName);
-    public FritzBoxAccesser()
-    {
-        if (Password is "" || FritzBoxUrl is "")
-            throw new NotImplementedException("Password or firtzbox url is not set! Set these by calling the SetAttributes() mehtod");
-    }
-    static FritzBoxAccesser()
-    {
-
-    }
+    public FritzBoxAccesser(string fritzBoxPassword, string fritzBoxUrl = "https://fritz.box", string userName = "") => (FritzBoxUrl, Password, fritzUserName) = (fritzBoxUrl, fritzBoxPassword, userName);
     private async Task<string> GetSessionId()
     {
-
         var response = HttpRequestFritzBox("/login_sid.lua", null, HttpRequestMethod.Get);
         var xml = XDocument.Parse(await response.Content.ReadAsStringAsync());
         var sid = xml.Root.Element("SID").Value;
@@ -38,16 +26,13 @@ public class FritzBoxAccesser
         var responseHash = CalculateMD5(challenge + "-" + Password);
         var content = new StringContent($"response={challenge}-{responseHash}&username={fritzUserName}&lp=overview&loginView=simple", Encoding.UTF8, "application/x-www-form-urlencoded");
 
-
         var loginResponse = HttpRequestFritzBox("/login_sid.lua", content, HttpRequestMethod.Post);
         var loginResponseContent = await loginResponse.Content.ReadAsStringAsync();
         var loginXml = XDocument.Parse(loginResponseContent);
         var loginSid = loginXml.Root.Element("SID").Value;
 
-
         if (loginSid == "0000000000000000")
             throw new Exception("Login failed. Ensure (if set) username and password is correct!");
-
 
         return loginSid;
     }
@@ -60,8 +45,6 @@ public class FritzBoxAccesser
             return await response.Content.ReadAsStringAsync();
 
         throw new Exception("Failed to fetch fritzbox overview page json");
-
-
     }
     public async Task<string> GetWifiRadioNetworkPageJsonAsync()
     {
@@ -176,7 +159,7 @@ public class FritzBoxAccesser
                         .GetResult();
                     return response;
                 }
-                throw new NotImplementedException("Only Put and Post methods are supported!");
+                throw new NotImplementedException("Only Get and Post methods are supported!");
             }
         }
     }
