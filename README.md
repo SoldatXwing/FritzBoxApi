@@ -1,5 +1,5 @@
 <h1>FritzBoxApi</h1>
-<span>This simple 'API' will log in to your local FritzBox with the given password and URL (the default URL is https://fritz.box) and can return all devices that are in the local network.</span>
+<span>This simple 'API' will log in to your local FritzBox with the given password and URL (the default URL is https://fritz.box) and can return all devices that are in the local network, and much more.</span>
 
 <h1>Usage</h1>
 <span>This simple approach shows how to initialize the FritzBoxAccesser and get the devices from the FritzBox.</span>
@@ -10,10 +10,9 @@ using FritzBoxApi;
 public class Program
 {
     private static async Task Main(string[] args)
-    {
-        FritzBoxAccesser.SetAttributes("password");
-        FritzBoxAccesser access = new FritzBoxAccesser();
-        var devices = await access.GetAllDevciesInNetworkAsync();
+    {        
+        FritzBoxAccesser fritzBoxAccesser = new FritzBoxAccesser(fritzBoxPassword: "password");
+        var devices = await fritzBoxAccesser.GetAllDevciesInNetworkAsync();
 
         foreach(Device device in devices)
             Console.WriteLine($"Device: {device.Name}, is active: {device.StateInfo.Active}");
@@ -21,10 +20,9 @@ public class Program
 }
 ```
 
-<span>Specify more details for the accessor:</span>
+<span>Specify more details for the access:</span>
 ```csharp
-FritzBoxAccesser.SetAttributes(fritzBoxPassword:"password", fritzBoxUrl: "https://192.168.178.1", userName: "fritz1234");
-FritzBoxAccesser fritzBoxAccesser = new FritzBoxAccesser();
+FritzBoxAccesser fritzBoxAccesser = new FritzBoxAccesser(fritzBoxPassword: "password", fritzBoxUrl: "https://192.168.178.1", userName: "fritz3000");
 ```
 <br/>
 <span>
@@ -37,10 +35,9 @@ public class Program
 {
     private static async Task Main(string[] args)
     {
-        FritzBoxAccesser.SetAttributes("password");
-        FritzBoxAccesser access = new FritzBoxAccesser();
-        var device = await access.GetSingleDeviceJTokenAsync(deviceName: "DESKTOP123");
-        await access.ChangeInternetAccessStateForDevice(
+        FritzBoxAccesser fritzBoxAccesser = new FritzBoxAccesser(fritzBoxPassword: "password");
+        var device = await fritzBoxAccesser.GetSingleDeviceJTokenAsync(deviceName: "DESKTOP123");
+        await fritzBoxAccesser.ChangeInternetAccessStateForDevice(
                 device["name"]?.ToString()!,
                 InternetDetail.Unlimited,
                 IPAddress.Parse(device["ip"]?.ToString()!),
