@@ -4,6 +4,7 @@ using Newtonsoft.Json.Linq;
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
+using System.Xml;
 using System.Xml.Linq;
 
 public class FritzBoxAccesser
@@ -14,27 +15,36 @@ public class FritzBoxAccesser
     public FritzBoxAccesser(string fritzBoxPassword, string fritzBoxUrl = "https://fritz.box", string userName = "") => (FritzBoxUrl, Password, fritzUserName) = (fritzBoxUrl, fritzBoxPassword, userName);
     private async Task<string> GetSessionId()
     {
-        var response = HttpRequestFritzBox("/login_sid.lua", null, HttpRequestMethod.Get);
-        var xml = XDocument.Parse(await response.Content.ReadAsStringAsync());
-        var sid = xml.Root.Element("SID").Value;
-        if (sid != "0000000000000000")
-            return sid;
+        try
+        {
+            var response = HttpRequestFritzBox("/login_sid.lua", null, HttpRequestMethod.Get);
+            var t = await response.Content.ReadAsStringAsync();
+            var xml = XDocument.Parse(await response.Content.ReadAsStringAsync());
+            var sid = xml.Root.Element("SID").Value;
+            if (sid != "0000000000000000")
+                return sid;
 
-        var challenge = xml.Root.Element("Challenge").Value;
-        fritzUserName = fritzUserName is "" ? xml.Root.Element("Users")?.Element("User").Value! : fritzUserName;
+            var challenge = xml.Root.Element("Challenge").Value;
+            fritzUserName = fritzUserName is "" ? xml.Root.Element("Users")?.Element("User").Value! : fritzUserName;
 
-        var responseHash = CalculateMD5(challenge + "-" + Password);
-        var content = new StringContent($"response={challenge}-{responseHash}&username={fritzUserName}&lp=overview&loginView=simple", Encoding.UTF8, "application/x-www-form-urlencoded");
+            var responseHash = CalculateMD5(challenge + "-" + Password);
+            var content = new StringContent($"response={challenge}-{responseHash}&username={fritzUserName}&lp=overview&loginView=simple", Encoding.UTF8, "application/x-www-form-urlencoded");
 
-        var loginResponse = HttpRequestFritzBox("/login_sid.lua", content, HttpRequestMethod.Post);
-        var loginResponseContent = await loginResponse.Content.ReadAsStringAsync();
-        var loginXml = XDocument.Parse(loginResponseContent);
-        var loginSid = loginXml.Root.Element("SID").Value;
+            var loginResponse = HttpRequestFritzBox("/login_sid.lua", content, HttpRequestMethod.Post);
+            var loginResponseContent = await loginResponse.Content.ReadAsStringAsync();
+            var loginXml = XDocument.Parse(loginResponseContent);
+            var loginSid = loginXml.Root.Element("SID").Value;
 
-        if (loginSid == "0000000000000000")
-            throw new Exception("Login failed. Ensure (if set) username and password is correct!");
+            if (loginSid == "0000000000000000")
+                throw new Exception("Login failed. Ensure (if set) username and password is correct!");
 
-        return loginSid;
+            return loginSid;
+        }
+        catch(XmlException ex)
+        {
+            throw new XmlException("Failed to parse xml page. Try a different fritzbox url.");
+        }
+       
     }
     public async Task<string> GetOverViewPageJsonAsync()
     {
@@ -68,13 +78,13 @@ public class FritzBoxAccesser
             {
                 var matchingDevice = knownWlanDevices.SingleOrDefault(d => d.Name == c.Name);
                 if (matchingDevice is not null)
-                    c.Ip = matchingDevice.Ip;
+                    c.Ip = IPAddress.Parse(matchingDevice.Ip);
             }
             catch (InvalidOperationException) //catches if more than 1 "known" device is found, and now search in the active ones
             {
                 var matchingDevice = knownWlanDevices.Where(c => c.Type == "active").SingleOrDefault(d => d.Name == c.Name);
                 if (matchingDevice is not null)
-                    c.Ip = matchingDevice.Ip;
+                    c.Ip = IPAddress.Parse(matchingDevice.Ip);
             }
 
         });
@@ -85,7 +95,7 @@ public class FritzBoxAccesser
     /// Task to get all active devices in local Network. Note: if getWithIp is enabled, the Task takes more time.
     /// </summary>
     /// <param name="getWithIp">Bool if the ip attribut should be filled</param>
-    /// <returns>A list od Devices</returns>
+    /// <returns>A list of Devices</returns>
     public async Task<List<Device>> GetAllDevciesInNetworkAsync(bool getWithIp = false)
     {
         var result = JsonConvert.DeserializeObject<FritzBoxResponse>(await GetOverViewPageJsonAsync())!.Data.Net.Devices!;
@@ -93,12 +103,39 @@ public class FritzBoxAccesser
             return result;
         return await ResolveIpsForDevices(result);
     }
-    public async Task<JToken> GetSingleDeviceJTokenAsync(string deviceName)
+    public async Task<Device> GetSingleDeviceAsync(string deviceName)
     {
         var response = JObject.Parse(await GetWifiRadioNetworkPageJsonAsync());
-        return response["data"]?["wlanSettings"]?["knownWlanDevices"]?.FirstOrDefault(d => d["name"]?.ToString() == "0b98ddcc-a57f-4898-9035-a678ce5692a0")!;
+        var deviceJson = response["data"]?["wlanSettings"]?["knownWlanDevices"]
+                ?.FirstOrDefault(d => d["name"]?.ToString() == deviceName)
+                ?.ToString();
+
+        if (deviceJson is null)
+            throw new KeyNotFoundException($"No Device with name: {deviceName} found!");
+        return JsonConvert.DeserializeObject<Device>(deviceJson)!;
     }
-    public async Task ChangeInternetAccessStateForDevice(string devName, InternetDetail internetDetailState, IPAddress ipAdress, string dev)
+    public async Task<Device> GetSingleDeviceAsync(IPAddress ip)
+    {
+        var response = JObject.Parse(await GetWifiRadioNetworkPageJsonAsync());
+        var deviceJson = response["data"]?["wlanSettings"]?["knownWlanDevices"]
+                        ?.FirstOrDefault(d => d["ip"]?.ToString() == ip.ToString())
+                        ?.ToString();
+
+        if (deviceJson is null)
+            throw new KeyNotFoundException($"No Device with ip: {ip} found!");
+        return JsonConvert.DeserializeObject<Device>(deviceJson)!;
+    }
+    /// <summary>
+    /// Method to change a access state for a device in local network.
+    /// </summary>
+    /// <param name="devName">Devicename aka "name"</param>
+    /// <param name="internetDetailState">Internet state for device</param>
+    /// <param name="ipAdress">Ip from device</param>
+    /// <param name="dev">Dev from device, aka "uid"</param>
+    /// <returns></returns>
+    /// <exception cref="NotImplementedException">Paramters cant be empty or null</exception>
+    /// <exception cref="ArgumentException">Invalid ip adress format</exception>
+    public async Task ChangeInternetAccessStateForDeviceAsync(string devName, InternetDetail internetDetailState, IPAddress ipAdress, string dev)
     {
         if (string.IsNullOrEmpty(devName) ||
             string.IsNullOrEmpty(dev) ||
@@ -138,6 +175,55 @@ public class FritzBoxAccesser
 
 
     }
+    /// <summary>
+    /// Method to change a access state for a device in local network.
+    /// </summary>
+    /// <param name="device">Device with given properties</param>
+    /// <param name="internetDetailState">Internet state for device</param>
+    /// <returns></returns>
+    /// <exception cref="NotImplementedException">Paramters cant be empty or null</exception>
+    /// <exception cref="ArgumentException">Invalid ip adress format</exception>
+    public async Task ChangeInternetAccessStateForDeviceAsync(Device device, InternetDetail internetDetailState)
+    {
+        if (string.IsNullOrEmpty(device.Name) ||
+            string.IsNullOrEmpty(device.Uid) ||
+            device.Ip is null)
+            throw new NotImplementedException("Paramters cant be empty or null!");
+        try
+        {
+            var sid = await GetSessionId();
+            var interFaceResponse = HttpRequestFritzBox("/data.lua", new StringContent($"xhr=1&sid={sid}&lang=de&page=edit_device&xhrId=all&dev={device.Uid}&back_to_page=wSet", Encoding.UTF8, "application/x-www-form-urlencoded"), HttpRequestMethod.Post);
+            var iFaceIdJson = JObject.Parse(await interFaceResponse.Content.ReadAsStringAsync());
+            string interFaceId = string.Empty;
+            //IPv6
+            if (bool.Parse(iFaceIdJson["data"]!["vars"]!["ipv6_enabled"]!.ToString()))
+                interFaceId = iFaceIdJson["data"]!["vars"]!["dev"]!["ipv6"]!["iface"]!["ifaceid"]!.ToString();
+            else //IPv4
+                throw new Exception("Unable to get interfaceid from device!");
+
+            string[] interFaceParts = interFaceId.Split(':');
+            string[] ipOctets = device.Ip.ToString().Split('.');
+            if (ipOctets.Length != 4)
+                throw new ArgumentException("Invalid IP address format");
+
+            var bodyParamters = new StringContent(
+                $"xhr=1&dev_name={device.Name}&internetdetail={internetDetailState.ToString().ToLower()}&allow_pcp_and_upnp=off&dev_ip0={ipOctets[0]}&dev_ip1={ipOctets[1]}&dev_ip2={ipOctets[2]}&dev_ip3={ipOctets[3]}&dev_ip={device.Ip.ToString()}&static_dhcp=off&interface_id1={interFaceParts[2]}&interface_id2={interFaceParts[3]}&interface_id3={interFaceParts[4]}&interface_id4={interFaceParts[5]}&back_to_page=wSet&dev={device.Uid}&apply=true&sid={sid}&lang=de&page=edit_device",
+                Encoding.UTF8,
+                "application/x-www-form-urlencoded"
+                );
+
+            var response = HttpRequestFritzBox("/data.lua", bodyParamters, HttpRequestMethod.Post);
+            if (!response.IsSuccessStatusCode)
+                throw new Exception($"Error blocking internet access for device {device.Name}. Ensure all parameters are correct");
+        }
+        catch
+        {
+            throw new ArgumentException("Invalid IP address format");
+        }
+
+
+    }
+
     private HttpResponseMessage HttpRequestFritzBox(string relativeUrl, StringContent? bodyParameters, HttpRequestMethod method)
     {
         using (var handler = new HttpClientHandler())

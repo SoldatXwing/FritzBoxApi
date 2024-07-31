@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using System.Net;
 
 public class Device
 {
@@ -19,5 +20,10 @@ public class Device
 
     [JsonProperty("desc")]
     public string Description { get; set; }
-    public string Ip {  get; set; }
+    [JsonProperty("ip")]
+    [JsonConverter(typeof(IPAddressConverter))]
+    public IPAddress? Ip {  get; set; } = null;
+    [JsonProperty("uid")]
+    public string Uid { get; set; } = string.Empty;
+
 }
