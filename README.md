@@ -36,14 +36,8 @@ public class Program
     private static async Task Main(string[] args)
     {
         FritzBoxAccesser fritzBoxAccesser = new FritzBoxAccesser(fritzBoxPassword: "password");
-        var device = await fritzBoxAccesser.GetSingleDeviceJTokenAsync(deviceName: "DESKTOP123");
-        await fritzBoxAccesser.ChangeInternetAccessStateForDevice(
-                device["name"]?.ToString()!,
-                InternetDetail.Unlimited,
-                IPAddress.Parse(device["ip"]?.ToString()!),
-                device["uid"]?.ToString()!
-        );
-
+        var device = await fritzBoxAccesser.GetSingleDeviceAsync(deviceName: "DESKTOP123"); //Also works with ip: fritzBoxAccesser.GetSingleDeviceAsync(ip: IPAddress.Parse("192.168.178.2"));
+        await fritzBoxAccesser.ChangeInternetAccessStateForDeviceAsync(device, InternetDetail.Blocked);
     }
 }
 ```
