@@ -1,7 +1,7 @@
 <h1>FritzBoxApi</h1>
 <span>This simple 'API' will log in to your local FritzBox with the given password and URL (the default URL is https://fritz.box) and can return all devices that are in the local network, and much more.</span>
 
-<h1>Usage</h1>
+<h1>FritzBoxAcesser usage</h1>
 <span>This simple approach shows how to initialize the FritzBoxAccesser and get the devices from the FritzBox.</span>
 <br/><br/>
 
@@ -41,6 +41,29 @@ public class Program
     }
 }
 ```
+<h1>FritzBoxNasAcesser usage</h1>
+<span>This simple approach shows how to initialize the FritzBoxNasAccessor and get the NAS storage disk information.</span>
+<br/><br/>
+
+
+```csharp
+using FritzBoxApi;
+public class Program
+{
+    private static async Task Main(string[] args)
+    {
+        FritzBoxNasAccesser nasAccesser = new FritzBoxNasAccesser(fritzBoxPassword: "password", fritzBoxUrl: "https://192.168.178.1");
+        var diskInformation = await nasAccesser.GetNasStorageDiskInfoAsync(path: "/");
+        Console.WriteLine($"Total storage: {diskInformation.TotalInMb}Mb, free storage: {diskInformation.FreeInMb}Mb, used storage: {diskInformation.UsedInMb}Mb");
+    }
+}
+```
+<span>To get the bytes of a file, do the following:</span>
+```csharp
+FritzBoxNasAccesser nasAccesser = new FritzBoxNasAccesser(fritzBoxPassword: "password", fritzBoxUrl: "https://192.168.178.1");
+byte[] fileBytes = await nasAccesser.GetNasFileBytes("/path/to/file.png");
+```
+<br/>
 <h1>Info</h1>
 <span>
   If you want to set a custom FritzBox URL, make sure to use <code>https://</code>. For example, <code>https://192.168.178.1</code>.
