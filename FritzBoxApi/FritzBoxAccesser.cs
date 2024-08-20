@@ -191,6 +191,24 @@ public class FritzBoxAccesser : BaseAccesser
 
 
     }
+    /// <summary>
+    /// Reconnect router to recieve a new IP adress from provider
+    /// </summary>
+    /// <returns></returns>
+    /// <exception cref="Exception">Throws if fails</exception>
+    public async Task ReconnectAsync()
+    {
+        var sid = await GetSessionIdAsync();
+        var content = new StringContent($"xhr=1&sid={sid}&lang=de&page=netMoni&xhrId=reconnect&disconnect=true&useajax=1&no_sidrenew=", Encoding.UTF8, "application/x-www-form-urlencoded");
+        var response = HttpRequestFritzBox("/data.lua", content, HttpRequestMethod.Post);
+        //xhr=1&sid=dac944fb519e10d6&lang=de&page=netMoni&xhrId=updateGraphs&useajax=1&no_sidrenew=
+        //xhr=1&sid=dac944fb519e10d6&lang=de&page=netMoni&xhrId=updateTable&useajax=1&no_sidrenew=
+        Thread.Sleep(1000);
+        content = new StringContent($"xhr=1&sid=dac944fb519e10d6&lang=de&page=netMoni&xhrId=reconnect&connect=true&useajax=1&no_sidrenew=");      
+        var secondResponse = HttpRequestFritzBox("/data.lua",content, HttpRequestMethod.Post);
+        if(!response.IsSuccessStatusCode && secondResponse.IsSuccessStatusCode)
+            throw new Exception("Error reconnecting frit box!");
+    }
 
 }
 

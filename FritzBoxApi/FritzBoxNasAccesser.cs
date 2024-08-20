@@ -49,7 +49,7 @@ namespace FritzBoxApi
 
             throw new InvalidOperationException("Files are not available");
         }
-        public async Task<FirtzBoxNasResponse> GetNasDirectoryInfoAsync(string path = "/")
+        private async Task<FirtzBoxNasResponse> GetNasDirectoryInfoAsync(string path = "/")
         {
             if(!path.StartsWith("/"))
                 throw new InvalidOperationException(@"Path has to start with: ""/""");
