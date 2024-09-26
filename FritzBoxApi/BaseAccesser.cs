@@ -11,15 +11,12 @@ namespace FritzBoxApi
         protected DateTime SidTimestamp { get; set; }
         protected bool IsSidValid
         {
-            get
-            {
-                return (DateTime.Now - SidTimestamp) < TimeSpan.FromMinutes(10);
-            }
+            get => (DateTime.Now - SidTimestamp) < TimeSpan.FromMinutes(10);
         }
         protected static string FritzBoxUrl = string.Empty;
         protected string Password = string.Empty;
         protected string FritzUserName = string.Empty;
-        public string CalculateMD5(string input)
+        protected string CalculateMD5(string input)
         {
             using (MD5 md5 = MD5.Create())
             {

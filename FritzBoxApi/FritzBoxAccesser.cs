@@ -109,7 +109,7 @@ public class FritzBoxAccesser : BaseAccesser
         if (string.IsNullOrEmpty(devName) ||
             string.IsNullOrEmpty(dev) ||
             ipAdress is null)
-            throw new NotImplementedException("Paramters cant be empty or null!");
+            throw new NotImplementedException("Parameters cant be empty or null!");
         try
         {
             var sid = await GenerateSessionIdAsync();
