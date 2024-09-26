@@ -6,19 +6,8 @@ namespace FritzBoxApi
 {
     public class FritzBoxNasAccesser : BaseAccesser
     {
-        public FritzBoxNasAccesser(string fritzBoxPassword, string fritzBoxUrl = "https://fritz.box", string userName = "") => (FritzBoxUrl, Password, fritzUserName) = (fritzBoxUrl, fritzBoxPassword, userName);
+        public FritzBoxNasAccesser(string fritzBoxPassword, string fritzBoxUrl = "https://fritz.box", string userName = "") => (FritzBoxUrl, Password, FritzUserName) = (fritzBoxUrl, fritzBoxPassword, userName);
         
-        private async Task<string> CheckRightsAsync()
-        {
-            //May be obsolete
-            var sid = await GetSessionIdAsync();
-            var content = new StringContent($"sid={sid}&c=user&a=check_nas_rights", Encoding.UTF8, "application/x-www-form-urlencoded");
-            var response = HttpRequestFritzBox("/nas/api/data.lua", content, HttpRequestMethod.Post);
-            var i = await response.Content.ReadAsStringAsync();
-            if (response.IsSuccessStatusCode)
-                return await response.Content.ReadAsStringAsync();
-            throw new Exception("Failed to fetch nas overview page");
-        }
         public async Task<DiskInfo> GetNasStorageDiskInfoAsync(string path = "/")
         {
             if (!path.StartsWith("/"))
@@ -53,36 +42,37 @@ namespace FritzBoxApi
         {
             if(!path.StartsWith("/"))
                 throw new InvalidOperationException(@"Path has to start with: ""/""");
-            var sid = await GetSessionIdAsync();
-            var content = new StringContent($"sid={sid}&path={path}&limit=10000&sorting=%2Bfilename&c=files&a=browse", Encoding.UTF8, "application/x-www-form-urlencoded");
+            if (!IsSidValid)
+                await GenerateSessionIdAsync();
+            var content = new StringContent($"sid={CurrentSid}&path={path}&limit=10000&sorting=%2Bfilename&c=files&a=browse", Encoding.UTF8, "application/x-www-form-urlencoded");
             var response = HttpRequestFritzBox("/nas/api/data.lua", content, HttpRequestMethod.Post);
             if (response.IsSuccessStatusCode)
-                return JsonConvert.DeserializeObject<FirtzBoxNasResponse>(await response.Content.ReadAsStringAsync());
+                return JsonConvert.DeserializeObject<FirtzBoxNasResponse>(await response.Content.ReadAsStringAsync())!;
             throw new Exception("Failed to fetch nas server");
         }
         public async Task<byte[]> GetNasFileBytes(string path = "/")
         {
             if (!path.StartsWith("/"))
                 throw new InvalidOperationException(@"Path has to start with: ""/""");
-            var sid = await GetSessionIdAsync();
-            var content = new StringContent($"sid={sid}&script=%2Fapi%2Fdata.lua&c=files&a=get&path={path}", Encoding.UTF8, "application/x-www-form-urlencoded");
+            if (!IsSidValid)
+                await GenerateSessionIdAsync();
+            var content = new StringContent($"sid={CurrentSid}&script=%2Fapi%2Fdata.lua&c=files&a=get&path={path}", Encoding.UTF8, "application/x-www-form-urlencoded");
             var response = HttpRequestFritzBox("/nas/cgi-bin/luacgi_notimeout", content, HttpRequestMethod.Post);
-            var t = await   response.Content.ReadAsStringAsync();
             if (response.IsSuccessStatusCode)
                 return await response.Content.ReadAsByteArrayAsync();
             throw new InvalidOperationException("Failed to get file bytes");
         }
-        public async Task<HttpResponseMessage> UploadFileAsync(string relativeUrl,string relativeNasUrl, string sessionId, long modificationTime, byte[] fileBytes, string fileName)
+        public async Task<HttpResponseMessage> UploadFileAsync(string relativeUrl,string relativeNasUrl, long modificationTime, byte[] fileBytes, string fileName)
         {
-            if (string.IsNullOrEmpty(sessionId))
-                sessionId = await GetSessionIdAsync();
+            if (!IsSidValid)
+                await GenerateSessionIdAsync();
             string boundary = "------------------------" + DateTime.Now.Ticks.ToString("x");
 
             var fileContent = new ByteArrayContent(fileBytes);
             fileContent.Headers.ContentType = new MediaTypeHeaderValue(DetectMimeType(fileBytes));
             var form = new MultipartFormDataContent(boundary)
             {
-                { new StringContent(sessionId), "sid" },
+                { new StringContent(CurrentSid), "sid" },
                 { new StringContent(modificationTime.ToString()), "mtime" },
                 { new StringContent(relativeNasUrl), "dir" },
                 { new StringContent(""), "ResultScript" },
@@ -98,17 +88,11 @@ namespace FritzBoxApi
             if (fileBytes.Length > 0)
             {
                 if (fileBytes[0] == 0x25 && fileBytes[1] == 0x50 && fileBytes[2] == 0x44 && fileBytes[3] == 0x46) // %PDF
-                {
                     return "application/pdf";
-                }
                 else if (fileBytes.Length >= 4 && fileBytes[0] == 0x89 && fileBytes[1] == 0x50 && fileBytes[2] == 0x4E && fileBytes[3] == 0x47) // PNG
-                {
                     return "image/png";
-                }
                 else if (fileBytes.Length >= 2 && fileBytes[0] == 0xFF && fileBytes[1] == 0xD8) // JPEG
-                {
                     return "image/jpeg";
-                }
             }
 
             return "application/octet-stream";

@@ -7,9 +7,18 @@ namespace FritzBoxApi
 {
     public abstract class BaseAccesser : IAccesser
     {
+        protected string CurrentSid { get; set; } = null!;
+        protected DateTime SidTimestamp { get; set; }
+        protected bool IsSidValid
+        {
+            get
+            {
+                return (DateTime.Now - SidTimestamp) < TimeSpan.FromMinutes(10);
+            }
+        }
         protected static string FritzBoxUrl = string.Empty;
         protected string Password = string.Empty;
-        protected string fritzUserName;
+        protected string FritzUserName = string.Empty;
         public string CalculateMD5(string input)
         {
             using (MD5 md5 = MD5.Create())
@@ -25,34 +34,36 @@ namespace FritzBoxApi
                 return sb.ToString();
             }
         }
-        public async Task<string> GetSessionIdAsync()
+        public async Task<bool> GenerateSessionIdAsync()
         {
             try
             {
                 var response = HttpRequestFritzBox("/login_sid.lua", null, HttpRequestMethod.Get);
                 var t = await response.Content.ReadAsStringAsync();
                 var xml = XDocument.Parse(await response.Content.ReadAsStringAsync());
-                var sid = xml.Root.Element("SID").Value;
+                var sid = xml.Root!.Element("SID")!.Value;
                 if (sid != "0000000000000000")
-                    return sid;
+                    return false;
 
-                var challenge = xml.Root.Element("Challenge").Value;
-                fritzUserName = fritzUserName is "" ? xml.Root.Element("Users")?.Element("User").Value! : fritzUserName;
+                var challenge = xml.Root.Element("Challenge")!.Value;
+                FritzUserName = FritzUserName is "" ? xml.Root.Element("Users")?.Element("User")!.Value! : FritzUserName;
 
                 var responseHash = CalculateMD5(challenge + "-" + Password);
-                var content = new StringContent($"response={challenge}-{responseHash}&username={fritzUserName}&lp=overview&loginView=simple", Encoding.UTF8, "application/x-www-form-urlencoded");
+                var content = new StringContent($"response={challenge}-{responseHash}&username={FritzUserName}&lp=overview&loginView=simple", Encoding.UTF8, "application/x-www-form-urlencoded");
 
                 var loginResponse = HttpRequestFritzBox("/login_sid.lua", content, HttpRequestMethod.Post);
                 var loginResponseContent = await loginResponse.Content.ReadAsStringAsync();
                 var loginXml = XDocument.Parse(loginResponseContent);
-                var loginSid = loginXml.Root.Element("SID").Value;
+                var loginSid = loginXml.Root!.Element("SID")!.Value;
 
                 if (loginSid == "0000000000000000")
                     throw new Exception("Login failed. Ensure (if set) username and password is correct!");
 
-                return loginSid;
+                CurrentSid = loginSid;
+                SidTimestamp = DateTime.Now.AddMinutes(10);
+                return true;
             }
-            catch (XmlException ex)
+            catch (XmlException)
             {
                 throw new XmlException("Failed to parse xml page. Try a different fritzbox url.");
             }

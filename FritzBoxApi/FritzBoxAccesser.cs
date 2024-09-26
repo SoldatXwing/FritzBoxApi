@@ -7,21 +7,22 @@ using System.Text;
 
 public class FritzBoxAccesser : BaseAccesser
 {
-    public FritzBoxAccesser(string fritzBoxPassword, string fritzBoxUrl = "https://fritz.box", string userName = "") => (FritzBoxUrl, Password, fritzUserName) = (fritzBoxUrl, fritzBoxPassword, userName);
-    public async Task<string> GetOverViewPageJsonAsync()
+    public FritzBoxAccesser(string fritzBoxPassword, string fritzBoxUrl = "https://fritz.box", string userName = "") => (FritzBoxUrl, Password, FritzUserName) = (fritzBoxUrl, fritzBoxPassword, userName);
+    private async Task<string> GetOverViewPageJsonAsync()
     {
-        var sid = await base.GetSessionIdAsync();
-        var content = new StringContent($"xhr=1&sid={sid}&lang=de&page=overview&xhrId=all&useajax=1&no_sidrenew=", Encoding.UTF8, "application/x-www-form-urlencoded");
+        if (!IsSidValid)
+            await GenerateSessionIdAsync();
+        var content = new StringContent($"xhr=1&sid={CurrentSid}&lang=de&page=overview&xhrId=all&useajax=1&no_sidrenew=", Encoding.UTF8, "application/x-www-form-urlencoded");
         var response = HttpRequestFritzBox("/data.lua", content, HttpRequestMethod.Post);
         if (response.IsSuccessStatusCode)
             return await response.Content.ReadAsStringAsync();
-
         throw new Exception("Failed to fetch fritzbox overview page json");
     }
-    public async Task<string> GetWifiRadioNetworkPageJsonAsync()
+    private async Task<string> GetWifiRadioNetworkPageJsonAsync()
     {
-        var sid = await GetSessionIdAsync();
-        var content = new StringContent($"xhr=1&sid={sid}&lang=de&page=wSet&xhrId=all", Encoding.UTF8, "application/x-www-form-urlencoded");
+        if(!IsSidValid)
+            await GenerateSessionIdAsync();
+        var content = new StringContent($"xhr=1&sid={CurrentSid}&lang=de&page=wSet&xhrId=all", Encoding.UTF8, "application/x-www-form-urlencoded");
         var response = HttpRequestFritzBox("/data.lua", content, HttpRequestMethod.Post);
         if (response.IsSuccessStatusCode)
             return await response.Content.ReadAsStringAsync();
@@ -111,7 +112,7 @@ public class FritzBoxAccesser : BaseAccesser
             throw new NotImplementedException("Paramters cant be empty or null!");
         try
         {
-            var sid = await GetSessionIdAsync();
+            var sid = await GenerateSessionIdAsync();
             var interFaceResponse = HttpRequestFritzBox("/data.lua", new StringContent($"xhr=1&sid={sid}&lang=de&page=edit_device&xhrId=all&dev={dev}&back_to_page=wSet", Encoding.UTF8, "application/x-www-form-urlencoded"), HttpRequestMethod.Post);
             var iFaceIdJson = JObject.Parse(await interFaceResponse.Content.ReadAsStringAsync());
             string interFaceId = string.Empty;
@@ -159,7 +160,7 @@ public class FritzBoxAccesser : BaseAccesser
             throw new NotImplementedException("Paramters cant be empty or null!");
         try
         {
-            var sid = await GetSessionIdAsync();
+            var sid = await GenerateSessionIdAsync();
             var interFaceResponse = HttpRequestFritzBox("/data.lua", new StringContent($"xhr=1&sid={sid}&lang=de&page=edit_device&xhrId=all&dev={device.Uid}&back_to_page=wSet", Encoding.UTF8, "application/x-www-form-urlencoded"), HttpRequestMethod.Post);
             var iFaceIdJson = JObject.Parse(await interFaceResponse.Content.ReadAsStringAsync());
             string interFaceId = string.Empty;
@@ -198,11 +199,9 @@ public class FritzBoxAccesser : BaseAccesser
     /// <exception cref="Exception">Throws if fails</exception>
     public async Task ReconnectAsync()
     {
-        var sid = await GetSessionIdAsync();
+        var sid = await GenerateSessionIdAsync();
         var content = new StringContent($"xhr=1&sid={sid}&lang=de&page=netMoni&xhrId=reconnect&disconnect=true&useajax=1&no_sidrenew=", Encoding.UTF8, "application/x-www-form-urlencoded");
         var response = HttpRequestFritzBox("/data.lua", content, HttpRequestMethod.Post);
-        //xhr=1&sid=dac944fb519e10d6&lang=de&page=netMoni&xhrId=updateGraphs&useajax=1&no_sidrenew=
-        //xhr=1&sid=dac944fb519e10d6&lang=de&page=netMoni&xhrId=updateTable&useajax=1&no_sidrenew=
         Thread.Sleep(1000);
         content = new StringContent($"xhr=1&sid=dac944fb519e10d6&lang=de&page=netMoni&xhrId=reconnect&connect=true&useajax=1&no_sidrenew=");      
         var secondResponse = HttpRequestFritzBox("/data.lua",content, HttpRequestMethod.Post);
