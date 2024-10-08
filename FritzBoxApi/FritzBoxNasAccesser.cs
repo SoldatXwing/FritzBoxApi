@@ -12,7 +12,7 @@ namespace FritzBoxApi
         {
             if (!path.StartsWith("/"))
                 throw new InvalidOperationException(@"Path has to start with: ""/""");
-            var response = await GetNasDirectoryInfoAsync();
+            var response = await GetNasDirectoryInfoAsync(path);
             if (response?.DiskInfo is not null)
                 return response.DiskInfo;
 
@@ -22,7 +22,7 @@ namespace FritzBoxApi
         {
             if (!path.StartsWith("/"))
                 throw new InvalidOperationException(@"Path has to start with: ""/""");
-            var response = await GetNasDirectoryInfoAsync();
+            var response = await GetNasDirectoryInfoAsync(path);
             if (response?.Directories is not null)
                 return response.Directories;
 
@@ -32,7 +32,7 @@ namespace FritzBoxApi
         {
             if (!path.StartsWith("/"))
                 throw new InvalidOperationException(@"Path has to start with: ""/""");
-            var response = await GetNasDirectoryInfoAsync();
+            var response = await GetNasDirectoryInfoAsync(path);
             if (response?.Files is not null)
                 return response.Files;
 
