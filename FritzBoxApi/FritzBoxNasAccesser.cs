@@ -56,8 +56,7 @@ namespace FritzBoxApi
                 throw new InvalidOperationException(@"Path has to start with: ""/""");
             if (!IsSidValid)
                 await GenerateSessionIdAsync();
-            var content = new StringContent($"sid={CurrentSid}&script=%2Fapi%2Fdata.lua&c=files&a=get&path={path}", Encoding.UTF8, "application/x-www-form-urlencoded");
-            var response = HttpRequestFritzBox("/nas/cgi-bin/luacgi_notimeout", content, HttpRequestMethod.Post);
+            var response = HttpRequestFritzBox($"/nas/api/data.lua?c=pictures&a=get&sid={CurrentSid}&path={path}", null, HttpRequestMethod.Get);
             if (response.IsSuccessStatusCode)
                 return await response.Content.ReadAsByteArrayAsync();
             throw new InvalidOperationException("Failed to get file bytes");
